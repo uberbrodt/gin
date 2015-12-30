@@ -9,6 +9,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -34,6 +35,7 @@ const abortIndex int8 = math.MaxInt8 / 2
 // Context is the most important part of gin. It allows us to pass variables between middleware,
 // manage the flow, validate the JSON of a request and render a JSON response for example.
 type Context struct {
+	queryvals url.Values
 	writermem responseWriter
 	Request   *http.Request
 	Writer    ResponseWriter
@@ -225,11 +227,16 @@ func (c *Context) DefaultQuery(key, defaultValue string) string {
 }
 
 func (c *Context) query(key string) (string, bool) {
-	req := c.Request
-	if values, ok := req.URL.Query()[key]; ok && len(values) > 0 {
-		return values[0], true
+	if c.queryvals != nil {
+		if values, ok := c.queryvals[key]; ok && len(values) > 0 {
+			return values[0], true
+		}
+		return "", false
+	} else {
+		req := c.Request
+		c.queryvals = req.URL.Query()
+		return c.query(key)
 	}
-	return "", false
 }
 
 func (c *Context) postForm(key string) (string, bool) {
